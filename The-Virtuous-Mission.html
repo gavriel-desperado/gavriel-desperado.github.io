@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mira Bhayandar Flyover - Cyber-Blueprint Visualizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Orbitron & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Orbitron:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#050811',
+                            card: 'rgba(10, 20, 38, 0.75)',
+                            border: 'rgba(0, 243, 255, 0.25)',
+                            blue: '#00f3ff',
+                            cobalt: '#0066ff',
+                            glow: 'rgba(0, 243, 255, 0.4)',
+                            darkGlow: 'rgba(0, 102, 255, 0.2)'
+                        }
+                    },
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #050811;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Cross-Platform Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(5, 8, 17, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0066ff;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f3ff;
+        }
+
+        /* Glassmorphism Panel */
+        .glass-panel {
+            background: rgba(8, 16, 32, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 243, 255, 0.05);
+        }
+
+        /* Cyan Glow Effects */
+        .glow-text {
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.7), 0 0 16px rgba(0, 243, 255, 0.4);
+        }
+        .glow-box {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(0, 102, 255, 0.2);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 4px;
+            height: 8px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #00f3ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00f3ff;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #00f3ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00f3ff;
+            border: none;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* Scanning Grid Animation */
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 243, 255, 0.03) 50%, rgba(0, 243, 255, 0.03));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-slate-200 select-none">
+
+    <!-- Grid Overlay Effect -->
+    <div class="scanline"></div>
+
+    <!-- 3D Canvas Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- Header / Title Bar -->
+    <header class="absolute top-0 left-0 right-0 z-10 p-3 md:p-4 flex flex-wrap justify-between items-center glass-panel border-b border-cyber-border m-2 md:m-3 rounded-xl">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-cyan-950/60 rounded-lg border border-cyber-blue/40 text-cyber-blue shrink-0">
+                <i data-lucide="layers" class="w-5 h-5 md:w-6 md:h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-2xl font-bold font-orbitron tracking-wider text-white flex items-center gap-2">
+                    MIRA BHAYANDAR FLYOVER
+                    <span class="text-[10px] md:text-xs bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/40 px-2 py-0.5 rounded uppercase font-sans font-medium">3D Studio v3.2</span>
+                </h1>
+                <p class="text-[10px] md:text-xs text-cyan-400/80 tracking-widest font-mono">CYBER-BLUEPRINT ROAD CONVERGENCE SIMULATOR</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 mt-2 sm:mt-0">
+            <button id="btn-export-spec" class="px-3 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyber-blue/50 text-cyber-blue text-xs font-semibold rounded-lg flex items-center gap-1.5 transition active:scale-95">
+                <i data-lucide="download" class="w-4 h-4"></i> <span class="hidden sm:inline">Export Specs</span>
+            </button>
+            <button id="btn-reset" class="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition active:scale-95">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> <span class="hidden sm:inline">Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main UI Layout Frame -->
+    <div class="relative z-10 flex flex-col md:flex-row h-screen pt-20 md:pt-24 pb-12 md:pb-14 px-2 md:px-3 pointer-events-none gap-3 md:gap-4">
+        
+        <!-- Left Control Side Panel -->
+        <aside class="w-full md:w-96 glass-panel rounded-xl p-3 md:p-4 flex flex-col pointer-events-auto max-h-[45vh] md:max-h-full overflow-y-auto z-20 transition-all duration-300 shadow-2xl shrink-0">
+            <div class="flex items-center justify-between border-b border-cyber-border/40 pb-2 md:pb-3 mb-3">
+                <h2 class="text-xs md:text-sm font-bold font-orbitron text-cyber-blue tracking-wider flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4"></i> ROAD GEOMETRY
+                </h2>
+                <span class="text-[10px] text-slate-400 font-mono">INTERACTIVE PARAMS</span>
+            </div>
+
+            <!-- Scrollable Form Controls -->
+            <div class="space-y-3 md:space-y-4 text-xs font-mono pr-1">
+
+                <!-- Scenario Notice -->
+                <div class="p-2 md:p-2.5 bg-cyan-950/40 rounded-lg border border-cyber-blue/30 text-cyan-200 text-[10px] md:text-[11px] leading-relaxed">
+                    <span class="font-bold text-cyber-blue font-sans">Adaptive Convergence Scenario:</span> Configure entry and final lanes to simulate flyover taper dynamics.
+                </div>
+
+                <!-- Initial Section -->
+                <div class="bg-slate-900/50 p-2.5 md:p-3 rounded-lg border border-slate-800 space-y-2 md:space-y-3">
+                    <div class="text-cyan-400 font-sans font-semibold text-xs border-b border-slate-800 pb-1 flex justify-between">
+                        <span>ENTRY SECTION</span>
+                        <span class="text-slate-400 text-[10px]">WIDE APPROACH</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Initial Lanes:</label>
+                            <span id="val-initLanes" class="text-cyber-blue font-bold">4 Lanes</span>
+                        </div>
+                        <input id="slider-initLanes" type="range" min="2" max="6" step="1" value="4" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Initial Road Width:</label>
+                            <span id="val-initWidth" class="text-cyber-blue font-bold">14 m</span>
+                        </div>
+                        <input id="slider-initWidth" type="range" min="10" max="28" step="1" value="14" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Final / Converging Section -->
+                <div class="bg-slate-900/50 p-2.5 md:p-3 rounded-lg border border-slate-800 space-y-2 md:space-y-3">
+                    <div class="text-cyan-400 font-sans font-semibold text-xs border-b border-slate-800 pb-1 flex justify-between">
+                        <span>FINAL SECTION</span>
+                        <span class="text-slate-400 text-[10px]">EXIT / MERGED DECK</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Final Lanes:</label>
+                            <span id="val-finalLanes" class="text-cyber-blue font-bold">2 Lanes</span>
+                        </div>
+                        <input id="slider-finalLanes" type="range" min="1" max="6" step="1" value="2" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Converging Lanes:</label>
+                            <span id="val-convLanes" class="text-cyber-blue font-bold">2 Lanes</span>
+                        </div>
+                        <input id="slider-convLanes" type="range" min="1" max="6" step="1" value="2" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Exit Road Width (Depth):</label>
+                            <span id="val-convWidth" class="text-cyber-blue font-bold">14 m</span>
+                        </div>
+                        <input id="slider-convWidth" type="range" min="8" max="28" step="1" value="14" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Structural Parameters -->
+                <div class="bg-slate-900/50 p-2.5 md:p-3 rounded-lg border border-slate-800 space-y-2 md:space-y-3">
+                    <div class="text-cyan-400 font-sans font-semibold text-xs border-b border-slate-800 pb-1 flex justify-between">
+                        <span>FLYOVER ELEVATION & CURVE</span>
+                        <span class="text-slate-400 text-[10px]">3D SPAN</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Flyover Span Length:</label>
+                            <span id="val-length" class="text-cyber-blue font-bold">120 m</span>
+                        </div>
+                        <input id="slider-length" type="range" min="60" max="240" step="10" value="120" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Deck Elevation (Height):</label>
+                            <span id="val-elevation" class="text-cyber-blue font-bold">12 m</span>
+                        </div>
+                        <input id="slider-elevation" type="range" min="4" max="25" step="1" value="12" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Curve Angle / Radius:</label>
+                            <span id="val-curve" class="text-cyber-blue font-bold">35°</span>
+                        </div>
+                        <input id="slider-curve" type="range" min="0" max="90" step="5" value="35" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label>Pier Support Spacing:</label>
+                            <span id="val-pierSpacing" class="text-cyber-blue font-bold">20 m</span>
+                        </div>
+                        <input id="slider-pierSpacing" type="range" min="10" max="40" step="5" value="20" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Visual Customization & Color Selection -->
+                <div class="bg-slate-900/50 p-2.5 md:p-3 rounded-lg border border-slate-800 space-y-2 md:space-y-3">
+                    <div class="text-cyan-400 font-sans font-semibold text-xs border-b border-slate-800 pb-1">
+                        RENDER & HOLOGRAM STYLES
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span>Hologram Color:</span>
+                        <input id="color-hologram" type="color" value="#00f3ff" class="w-8 h-7 bg-transparent border border-cyber-border rounded cursor-pointer p-0">
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span>Render Style:</span>
+                        <select id="select-render-mode" class="bg-slate-950 border border-cyber-border text-cyber-blue px-2 py-1 rounded text-xs">
+                            <option value="blueprint">Cyber Blueprint Wireframe</option>
+                            <option value="metallic">Metallic Hologram</option>
+                            <option value="solid">Solid Structural Concept</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span>Mesh Density (Grid Res):</span>
+                        <button id="btn-toggle-density" class="px-2 py-1 bg-cyan-950 border border-cyber-blue/50 text-cyber-blue text-[11px] rounded">
+                            Medium
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span>Traffic Particle Flow:</span>
+                        <input id="chk-traffic" type="checkbox" checked class="w-4 h-4 accent-cyan-400">
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Right Side Overlay Controls & Camera Presets -->
+        <div class="flex-1 flex flex-col justify-between pointer-events-none gap-2">
+            
+            <!-- Top Camera Controls Bar -->
+            <div class="flex flex-wrap gap-1.5 md:gap-2 justify-end pointer-events-auto">
+                <button data-cam="perspective" class="btn-cam px-2.5 py-1.5 glass-panel text-cyber-blue border-cyber-blue hover:bg-cyan-950 text-[11px] md:text-xs font-semibold rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="box" class="w-3.5 h-3.5"></i> 3D Orbit View
+                </button>
+                <button data-cam="top" class="btn-cam px-2.5 py-1.5 glass-panel text-slate-300 border-slate-700 hover:bg-slate-800 text-[11px] md:text-xs font-semibold rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="move" class="w-3.5 h-3.5"></i> Top Blueprint
+                </button>
+                <button data-cam="elevation" class="btn-cam px-2.5 py-1.5 glass-panel text-slate-300 border-slate-700 hover:bg-slate-800 text-[11px] md:text-xs font-semibold rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="align-left" class="w-3.5 h-3.5"></i> Elevation Profile
+                </button>
+                <button data-cam="driver" class="btn-cam px-2.5 py-1.5 glass-panel text-slate-300 border-slate-700 hover:bg-slate-800 text-[11px] md:text-xs font-semibold rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> Driver Eye Level
+                </button>
+            </div>
+
+            <!-- Bottom Telemetry Card Overlay -->
+            <div class="flex flex-col md:flex-row justify-between items-end gap-2 md:gap-3 pointer-events-auto">
+                
+                <!-- On-Screen Telemetry Readout -->
+                <div class="glass-panel rounded-xl p-2.5 md:p-3 w-full md:w-auto flex flex-wrap gap-3 md:gap-4 text-[11px] md:text-xs font-mono border-t-2 border-t-cyber-blue">
+                    <div>
+                        <div class="text-slate-400 text-[9px] md:text-[10px]">SURFACE AREA</div>
+                        <div id="telemetry-area" class="text-cyber-blue font-bold text-xs md:text-sm">0 m²</div>
+                    </div>
+                    <div class="border-l border-slate-800 pl-3 md:pl-4">
+                        <div class="text-slate-400 text-[9px] md:text-[10px]">SUPPORT PIERS</div>
+                        <div id="telemetry-piers" class="text-cyber-blue font-bold text-xs md:text-sm">0 Units</div>
+                    </div>
+                    <div class="border-l border-slate-800 pl-3 md:pl-4">
+                        <div class="text-slate-400 text-[9px] md:text-[10px]">AVG GRADIENT</div>
+                        <div id="telemetry-gradient" class="text-cyber-blue font-bold text-xs md:text-sm">0 %</div>
+                    </div>
+                    <div class="border-l border-slate-800 pl-3 md:pl-4">
+                        <div class="text-slate-400 text-[9px] md:text-[10px]">EST. THROUGHPUT</div>
+                        <div id="telemetry-capacity" class="text-cyber-blue font-bold text-xs md:text-sm">0 PCU/hr</div>
+                    </div>
+                </div>
+
+                <!-- Navigation Help Banner -->
+                <div class="glass-panel px-3 py-1.5 md:py-2 rounded-lg text-[10px] md:text-[11px] text-slate-400 font-mono flex items-center gap-2">
+                    <i data-lucide="mouse-pointer-2" class="w-3.5 h-3.5 text-cyber-blue"></i>
+                    <span>Rotate: Drag/Touch | Zoom: Scroll/Pinch | Pan: Right-Click</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Bottom Credits Bar -->
+    <footer class="absolute bottom-1 left-0 right-0 z-20 text-center pointer-events-auto">
+        <div class="inline-block px-4 py-1 glass-panel rounded-full text-[10px] md:text-xs font-mono text-cyan-300/80 border border-cyber-border/40">
+            Concept, Designing & Development by <span class="text-cyber-blue font-semibold">Fawwaz Shaikh</span>
+        </div>
+    </footer>
+
+    <!-- Modal Dialog for Export Specs -->
+    <div id="modal-specs" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel rounded-xl p-5 md:p-6 max-w-md w-full border-cyber-blue">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+                <h3 class="font-orbitron font-bold text-cyber-blue text-sm md:text-base flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5"></i> ENGINEERING SPECIFICATIONS
+                </h3>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="modal-spec-content" class="space-y-2 text-xs font-mono text-slate-300 max-h-60 overflow-y-auto pr-2">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="mt-5 text-right">
+                <button id="btn-modal-ok" class="px-4 py-2 bg-cyber-blue text-slate-950 font-bold rounded-lg hover:bg-cyan-300 text-xs font-orbitron transition">
+                    CLOSE SPEC
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Scene Global Setup
+        let scene, camera, renderer, controls;
+        let flyoverGroup, gridHelper;
+        let particleSystem;
+
+        // Configuration State
+        const state = {
+            initLanes: 4,
+            initWidth: 14,
+            finalLanes: 2,
+            convLanes: 2,
+            convWidth: 14,
+            length: 120,
+            elevation: 12,
+            curveAngle: 35,
+            pierSpacing: 20,
+            renderMode: 'blueprint', // 'blueprint', 'metallic', 'solid'
+            density: 'medium', // 'low', 'medium', 'high'
+            showTraffic: true,
+            holoColor: '#00f3ff'
+        };
+
+        // Initialize 3D Engine
+        function initEngine() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050811, 0.0015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(60, 45, 110);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controls with cross-platform touch support
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 1000;
+            controls.touches = {
+                ONE: THREE.TOUCH.ROTATE,
+                TWO: THREE.TOUCH.DOLLY_PAN
+            };
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x1a2b4c, 1.5);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x00f3ff, 2.0);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x0066ff, 3, 100);
+            pointLight.position.set(-20, 20, -20);
+            scene.add(pointLight);
+
+            // Ground Cyber Grid - Scaled to 1000 to cover large spans
+            gridHelper = new THREE.GridHelper(1000, 100, new THREE.Color(state.holoColor), 0x002b4d);
+            gridHelper.position.y = 0;
+            gridHelper.material.opacity = 0.6;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+
+            // Group for procedural flyover
+            flyoverGroup = new THREE.Group();
+            scene.add(flyoverGroup);
+
+            // Build Initial Geometry
+            buildFlyover();
+            initTrafficParticles();
+
+            // Window Resize & Touch Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('orientationchange', () => setTimeout(onWindowResize, 200));
+        }
+
+        // Dynamic Grid Update on color / layout changes
+        function updateGridColor() {
+            if (gridHelper) {
+                gridHelper.material.color.set(state.holoColor);
+            }
+        }
+
+        // Calculate Curve Path
+        function createCurvePath() {
+            const rad = (state.curveAngle * Math.PI) / 180;
+            const points = [];
+            const segments = 40;
+
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const distance = t * state.length;
+                
+                // Elevation curve
+                const currentElev = Math.sin(t * Math.PI) * state.elevation;
+
+                // Curving path calculation
+                const angle = t * rad;
+                const x = Math.sin(angle) * (distance * 0.8);
+                const z = -Math.cos(angle) * distance;
+
+                points.push(new THREE.Vector3(x, currentElev, z));
+            }
+
+            return new THREE.CatmullRomCurve3(points);
+        }
+
+        // Build procedural mesh flyover structure
+        function buildFlyover() {
+            // Clear existing geometry
+            while (flyoverGroup.children.length > 0) {
+                const obj = flyoverGroup.children[0];
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                    else obj.material.dispose();
+                }
+                flyoverGroup.remove(obj);
+            }
+
+            const curve = createCurvePath();
+            const segments = state.density === 'high' ? 80 : (state.density === 'medium' ? 40 : 20);
+            const curvePoints = curve.getSpacedPoints(segments);
+
+            // Material Definitions with Dynamic Hologram Color
+            let deckMaterial, wireframeMaterial, pillarMaterial, railMaterial;
+            const baseColor = new THREE.Color(state.holoColor);
+
+            if (state.renderMode === 'blueprint') {
+                deckMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x001a33,
+                    wireframe: false,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                wireframeMaterial = new THREE.MeshBasicMaterial({
+                    color: baseColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                pillarMaterial = new THREE.MeshBasicMaterial({
+                    color: baseColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.5
+                });
+                railMaterial = new THREE.MeshBasicMaterial({
+                    color: baseColor,
+                    wireframe: false
+                });
+            } else if (state.renderMode === 'metallic') {
+                deckMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x111e38,
+                    metalness: 0.8,
+                    roughness: 0.2,
+                    emissive: 0x002244
+                });
+                wireframeMaterial = new THREE.MeshBasicMaterial({
+                    color: baseColor,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.25
+                });
+                pillarMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x0a1526,
+                    metalness: 0.9,
+                    roughness: 0.3
+                });
+                railMaterial = new THREE.MeshStandardMaterial({
+                    color: baseColor,
+                    emissive: baseColor
+                });
+            } else { // Solid
+                deckMaterial = new THREE.MeshPhongMaterial({ color: 0x1a233a, flatShading: true });
+                wireframeMaterial = new THREE.MeshBasicMaterial({ color: baseColor, wireframe: true, transparent: true, opacity: 0.2 });
+                pillarMaterial = new THREE.MeshPhongMaterial({ color: 0x0d1424 });
+                railMaterial = new THREE.MeshBasicMaterial({ color: baseColor });
+            }
+
+            // Calculate width based on lanes dynamically
+            const calcInitWidth = state.initWidth * (state.initLanes / 4);
+            const calcFinalWidth = state.convWidth * (state.finalLanes / 2) * (state.convLanes / 2);
+
+            // Create Deck Geometry
+            const roadGeometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const indices = [];
+            const uvs = [];
+
+            // Generate ribbon vertices along curve with converging width
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const point = curvePoints[i];
+
+                const tangent = curve.getTangentAt(t).normalize();
+                const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+
+                // Width interpolation affected by Final & Converging Lanes
+                const currentWidth = THREE.MathUtils.lerp(calcInitWidth, calcFinalWidth, t);
+                const halfW = currentWidth / 2;
+
+                const leftPoint = point.clone().add(normal.clone().multiplyScalar(-halfW));
+                const rightPoint = point.clone().add(normal.clone().multiplyScalar(halfW));
+
+                vertices.push(leftPoint.x, leftPoint.y, leftPoint.z);
+                vertices.push(rightPoint.x, rightPoint.y, rightPoint.z);
+
+                uvs.push(0, t);
+                uvs.push(1, t);
+
+                if (i < segments) {
+                    const base = i * 2;
+                    indices.push(base, base + 1, base + 2);
+                    indices.push(base + 1, base + 3, base + 2);
+                }
+            }
+
+            roadGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            roadGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            roadGeometry.setIndex(indices);
+            roadGeometry.computeVertexNormals();
+
+            // Main Road Mesh & Wireframe
+            const roadMesh = new THREE.Mesh(roadGeometry, deckMaterial);
+            const wireMesh = new THREE.Mesh(roadGeometry, wireframeMaterial);
+            wireMesh.position.y += 0.05;
+
+            flyoverGroup.add(roadMesh);
+            flyoverGroup.add(wireMesh);
+
+            // Side Rails / Barriers
+            const railLeftVerts = [];
+            const railRightVerts = [];
+
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const point = curvePoints[i];
+                const tangent = curve.getTangentAt(t).normalize();
+                const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+                const currentWidth = THREE.MathUtils.lerp(calcInitWidth, calcFinalWidth, t);
+                const halfW = currentWidth / 2;
+
+                const leftPoint = point.clone().add(normal.clone().multiplyScalar(-halfW));
+                const rightPoint = point.clone().add(normal.clone().multiplyScalar(halfW));
+
+                railLeftVerts.push(leftPoint.x, leftPoint.y + 1.2, leftPoint.z);
+                railRightVerts.push(rightPoint.x, rightPoint.y + 1.2, rightPoint.z);
+            }
+
+            const leftRailCurve = new THREE.CatmullRomCurve3(railLeftVerts.map(v => new THREE.Vector3(v[0], v[1], v[2])));
+            const rightRailCurve = new THREE.CatmullRomCurve3(railRightVerts.map(v => new THREE.Vector3(v[0], v[1], v[2])));
+
+            const tubeGeoLeft = new THREE.TubeGeometry(leftRailCurve, segments, 0.25, 6, false);
+            const tubeGeoRight = new THREE.TubeGeometry(rightRailCurve, segments, 0.25, 6, false);
+
+            flyoverGroup.add(new THREE.Mesh(tubeGeoLeft, railMaterial));
+            flyoverGroup.add(new THREE.Mesh(tubeGeoRight, railMaterial));
+
+            // Structural Pier Pillars - Precisely aligned flush under the road deck using exact local surface tangent calculations
+            const numPillars = Math.floor(state.length / state.pierSpacing);
+            let actualPillarCount = 0;
+
+            for (let i = 1; i <= numPillars; i++) {
+                const t = i / (numPillars + 1);
+                const point = curve.getPointAt(t);
+
+                if (point.y > 1.5) {
+                    actualPillarCount++;
+                    
+                    // Exact height under the center spline line
+                    const deckBottomY = point.y - 0.2; 
+                    const pillarHeight = deckBottomY;
+                    
+                    if (pillarHeight > 0) {
+                        // Vertical Pillar Support
+                        const pillarGeo = new THREE.CylinderGeometry(1.2, 1.8, pillarHeight, 8);
+                        const pillarMesh = new THREE.Mesh(pillarGeo, pillarMaterial);
+                        pillarMesh.position.set(point.x, pillarHeight / 2, point.z);
+
+                        // Structural Pier Head (Hammerhead Crossbeam) tailored to exact deck width at this segment
+                        const currentWidth = THREE.MathUtils.lerp(calcInitWidth, calcFinalWidth, t);
+                        const headGeo = new THREE.BoxGeometry(currentWidth * 0.95, 0.4, 2.2);
+                        const headMesh = new THREE.Mesh(headGeo, pillarMaterial);
+                        
+                        // Position head perfectly tucked right under the lower surface of the deck
+                        headMesh.position.set(point.x, deckBottomY - 0.2, point.z);
+
+                        // Orient crossbeam along the exact angle of the curve
+                        const tangent = curve.getTangentAt(t);
+                        const angle = Math.atan2(tangent.x, tangent.z);
+                        headMesh.rotation.y = angle + Math.PI / 2;
+
+                        flyoverGroup.add(pillarMesh);
+                        flyoverGroup.add(headMesh);
+                    }
+                }
+            }
+
+            // Update Telemetry with dynamic values
+            updateTelemetry(actualPillarCount, calcInitWidth, calcFinalWidth);
+        }
+
+        function initTrafficParticles() {
+            const particleCount = 150;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const progress = new Float32Array(particleCount);
+            const laneOffset = new Float32Array(particleCount);
+
+            for (let i = 0; i < particleCount; i++) {
+                progress[i] = Math.random();
+                laneOffset[i] = (Math.random() - 0.5) * 0.8;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({
+                color: new THREE.Color(state.holoColor),
+                size: 1.2,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+
+            particleSystem = new THREE.Points(geometry, material);
+            particleSystem.userData = { progress, laneOffset, particleCount };
+            scene.add(particleSystem);
+        }
+
+        function animateTraffic() {
+            if (!particleSystem || !state.showTraffic) return;
+
+            const curve = createCurvePath();
+            const { progress, laneOffset, particleCount } = particleSystem.userData;
+            const positions = particleSystem.geometry.attributes.position.array;
+
+            const calcInitWidth = state.initWidth * (state.initLanes / 4);
+            const calcFinalWidth = state.convWidth * (state.finalLanes / 2) * (state.convLanes / 2);
+
+            for (let i = 0; i < particleCount; i++) {
+                progress[i] += 0.003;
+                if (progress[i] > 1) progress[i] = 0;
+
+                const t = progress[i];
+                const point = curve.getPointAt(t);
+                const tangent = curve.getTangentAt(t).normalize();
+                const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+
+                const currentWidth = THREE.MathUtils.lerp(calcInitWidth, calcFinalWidth, t);
+                const offsetDistance = laneOffset[i] * (currentWidth * 0.8);
+
+                const finalPos = point.clone().add(normal.multiplyScalar(offsetDistance));
+
+                positions[i * 3] = finalPos.x;
+                positions[i * 3 + 1] = finalPos.y + 0.5;
+                positions[i * 3 + 2] = finalPos.z;
+            }
+
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateTelemetry(pillarCount, calculatedInitWidth, calculatedFinalWidth) {
+            const avgWidth = (calculatedInitWidth + calculatedFinalWidth) / 2;
+            const surfaceArea = Math.round(state.length * avgWidth);
+
+            const gradient = ((state.elevation / (state.length / 2)) * 100).toFixed(1);
+
+            const bottleneckLanes = Math.min(state.initLanes, state.finalLanes, state.convLanes);
+            const throughput = bottleneckLanes * 1900;
+
+            document.getElementById('telemetry-area').innerText = `${surfaceArea.toLocaleString()} m²`;
+            document.getElementById('telemetry-piers').innerText = `${pillarCount} Piers`;
+            document.getElementById('telemetry-gradient').innerText = `${gradient} %`;
+            document.getElementById('telemetry-capacity').innerText = `~${throughput.toLocaleString()} PCU/h`;
+        }
+
+        // Camera Views Preset Handler
+        function setCameraPreset(mode) {
+            const curve = createCurvePath();
+            const midPoint = curve.getPointAt(0.5);
+
+            if (mode === 'perspective') {
+                camera.position.set(60, 45, 110);
+                controls.target.set(midPoint.x, midPoint.y, midPoint.z);
+            } else if (mode === 'top') {
+                camera.position.set(0, 220, -state.length / 2);
+                controls.target.set(0, 0, -state.length / 2);
+            } else if (mode === 'elevation') {
+                camera.position.set(180, state.elevation, -state.length / 2);
+                controls.target.set(0, state.elevation / 2, -state.length / 2);
+            } else if (mode === 'driver') {
+                const startPoint = curve.getPointAt(0.02);
+                const lookAtPoint = curve.getPointAt(0.15);
+                camera.position.set(startPoint.x, startPoint.y + 1.8, startPoint.z);
+                controls.target.set(lookAtPoint.x, lookAtPoint.y + 1.8, lookAtPoint.z);
+            }
+            controls.update();
+        }
+
+        // Event Listeners for Controls
+        function bindEvents() {
+            const inputs = [
+                { id: 'slider-initLanes', key: 'initLanes', label: 'val-initLanes', unit: ' Lanes' },
+                { id: 'slider-initWidth', key: 'initWidth', label: 'val-initWidth', unit: ' m' },
+                { id: 'slider-finalLanes', key: 'finalLanes', label: 'val-finalLanes', unit: ' Lanes' },
+                { id: 'slider-convLanes', key: 'convLanes', label: 'val-convLanes', unit: ' Lanes' },
+                { id: 'slider-convWidth', key: 'convWidth', label: 'val-convWidth', unit: ' m' },
+                { id: 'slider-length', key: 'length', label: 'val-length', unit: ' m' },
+                { id: 'slider-elevation', key: 'elevation', label: 'val-elevation', unit: ' m' },
+                { id: 'slider-curve', key: 'curveAngle', label: 'val-curve', unit: '°' },
+                { id: 'slider-pierSpacing', key: 'pierSpacing', label: 'val-pierSpacing', unit: ' m' }
+            ];
+
+            inputs.forEach(item => {
+                const slider = document.getElementById(item.id);
+                const label = document.getElementById(item.label);
+                if (slider && label) {
+                    slider.addEventListener('input', (e) => {
+                        state[item.key] = parseFloat(e.target.value);
+                        label.innerText = `${state[item.key]}${item.unit}`;
+                        buildFlyover();
+                    });
+                }
+            });
+
+            // Hologram Color Input
+            const colorInput = document.getElementById('color-hologram');
+            colorInput.addEventListener('input', (e) => {
+                state.holoColor = e.target.value;
+                updateGridColor();
+                if (particleSystem) {
+                    particleSystem.material.color.set(state.holoColor);
+                }
+                buildFlyover();
+            });
+
+            // Render Mode Select
+            document.getElementById('select-render-mode').addEventListener('change', (e) => {
+                state.renderMode = e.target.value;
+                buildFlyover();
+            });
+
+            // Density Toggle Button
+            const densityBtn = document.getElementById('btn-toggle-density');
+            densityBtn.addEventListener('click', () => {
+                if (state.density === 'low') state.density = 'medium';
+                else if (state.density === 'medium') state.density = 'high';
+                else state.density = 'low';
+
+                densityBtn.innerText = state.density.charAt(0).toUpperCase() + state.density.slice(1);
+                buildFlyover();
+            });
+
+            // Traffic Checkbox
+            document.getElementById('chk-traffic').addEventListener('change', (e) => {
+                state.showTraffic = e.target.checked;
+                particleSystem.visible = state.showTraffic;
+            });
+
+            // Reset Button
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                state.initLanes = 4;
+                state.initWidth = 14;
+                state.finalLanes = 2;
+                state.convLanes = 2;
+                state.convWidth = 14;
+                state.length = 120;
+                state.elevation = 12;
+                state.curveAngle = 35;
+                state.pierSpacing = 20;
+                state.holoColor = '#00f3ff';
+
+                // Sync UI
+                document.getElementById('slider-initLanes').value = 4;
+                document.getElementById('val-initLanes').innerText = '4 Lanes';
+                document.getElementById('slider-initWidth').value = 14;
+                document.getElementById('val-initWidth').innerText = '14 m';
+                document.getElementById('slider-finalLanes').value = 2;
+                document.getElementById('val-finalLanes').innerText = '2 Lanes';
+                document.getElementById('slider-convLanes').value = 2;
+                document.getElementById('val-convLanes').innerText = '2 Lanes';
+                document.getElementById('slider-convWidth').value = 14;
+                document.getElementById('val-convWidth').innerText = '14 m';
+                document.getElementById('slider-length').value = 120;
+                document.getElementById('val-length').innerText = '120 m';
+                document.getElementById('slider-elevation').value = 12;
+                document.getElementById('val-elevation').innerText = '12 m';
+                document.getElementById('slider-curve').value = 35;
+                document.getElementById('val-curve').innerText = '35°';
+                document.getElementById('slider-pierSpacing').value = 20;
+                document.getElementById('val-pierSpacing').innerText = '20 m';
+                document.getElementById('color-hologram').value = '#00f3ff';
+
+                updateGridColor();
+                if (particleSystem) particleSystem.material.color.set(state.holoColor);
+                buildFlyover();
+                setCameraPreset('perspective');
+            });
+
+            // Camera Preset Buttons
+            document.querySelectorAll('.btn-cam').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.getAttribute('data-cam');
+                    setCameraPreset(mode);
+
+                    document.querySelectorAll('.btn-cam').forEach(b => {
+                        b.classList.remove('text-cyber-blue', 'border-cyber-blue');
+                        b.classList.add('text-slate-300', 'border-slate-700');
+                    });
+                    btn.classList.add('text-cyber-blue', 'border-cyber-blue');
+                    btn.classList.remove('text-slate-300', 'border-slate-700');
+                });
+            });
+
+            // Export Specs Modal
+            const modal = document.getElementById('modal-specs');
+            document.getElementById('btn-export-spec').addEventListener('click', () => {
+                const content = document.getElementById('modal-spec-content');
+                content.innerHTML = `
+                    <p class="text-cyber-blue font-bold">PROJECT: MIRA BHAYANDAR FLYOVER</p>
+                    <p>----------------------------------</p>
+                    <p>Approach Lanes: ${state.initLanes} Lanes (${state.initWidth}m base width)</p>
+                    <p>Final Lanes: ${state.finalLanes} Lanes</p>
+                    <p>Converging Lanes: ${state.convLanes} Lanes (${state.convWidth}m base width)</p>
+                    <p>Total Curve Length: ${state.length} meters</p>
+                    <p>Peak Elevation: ${state.elevation} meters</p>
+                    <p>Curvature Angle: ${state.curveAngle} degrees</p>
+                    <p>Pillar Support Spacing: ${state.pierSpacing} meters</p>
+                    <p>Calculated Surface Area: ${document.getElementById('telemetry-area').innerText}</p>
+                    <p>Est. Throughput Capacity: ${document.getElementById('telemetry-capacity').innerText}</p>
+                    <p>Hologram Primary Accent Color: ${state.holoColor}</p>
+                    <p>Render Theme: Cyber-Blueprint Matrix Grid</p>
+                    <p>----------------------------------</p>
+                    <p>Concept, Designing & Development by Fawwaz Shaikh</p>
+                `;
+                modal.classList.remove('hidden');
+            });
+
+            document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.add('hidden'));
+            document.getElementById('btn-modal-ok').addEventListener('click', () => modal.classList.add('hidden'));
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            animateTraffic();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize App on window load
+        window.onload = function() {
+            initEngine();
+            bindEvents();
+            animate();
+        };
+    </script>
+</body>
+</html>
